@@ -13,56 +13,74 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.google.android.gms.wearable.Wearable
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
+
+    private var messageCounter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            WearTestScreen(this)
+            WearTestScreen(
+                onSendClick = { sendJsonMessage() }
+            )
         }
+    }
+
+    private fun sendJsonMessage() {
+        messageCounter++
+
+        val json = JSONObject().apply {
+            put("type", "meditation_test")
+            put("sessionId", "session_001")
+            put("timestamp", System.currentTimeMillis())
+            put("messageCounter", messageCounter)
+            put("heartRate", 68)
+            put("motionScore", 0.12)
+            put("stillnessPercent", 91)
+            put("durationSec", 30)
+            put("source", "galaxy_watch_4")
+        }
+
+        val payload = json.toString().toByteArray(Charsets.UTF_8)
+
+        Wearable.getNodeClient(this).connectedNodes
+            .addOnSuccessListener { nodes ->
+                Log.d("WearSend", "Gefundene Nodes: ${nodes.size}")
+
+                if (nodes.isEmpty()) {
+                    Log.d("WearSend", "Kein verbundenes Handy gefunden")
+                }
+
+                nodes.forEach { node ->
+                    Log.d("WearSend", "Sende JSON an ${node.displayName}: $json")
+
+                    Wearable.getMessageClient(this)
+                        .sendMessage(node.id, "/bio", payload)
+                        .addOnSuccessListener {
+                            Log.d("WearSend", "JSON erfolgreich gesendet")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("WearSend", "Senden fehlgeschlagen: ${e.message}", e)
+                        }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("WearSend", "connectedNodes fehlgeschlagen: ${e.message}", e)
+            }
     }
 }
 
 @Composable
-fun WearTestScreen(activity: ComponentActivity) {
+fun WearTestScreen(onSendClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(onClick = {
-            val payload = "Hallo vom Wear-Modul".toByteArray(Charsets.UTF_8)
-
-            Wearable.getNodeClient(activity).connectedNodes
-                .addOnSuccessListener { nodes ->
-                    Log.d("WearSend", "Gefundene Nodes: ${nodes.size}")
-
-                    if (nodes.isEmpty()) {
-                        Log.d("WearSend", "Kein verbundenes Handy gefunden")
-                    }
-
-                    nodes.forEach { node ->
-                        Log.d(
-                            "WearSend",
-                            "Sende an Node: ${node.displayName}, id=${node.id}, nearby=${node.isNearby}"
-                        )
-
-                        Wearable.getMessageClient(activity)
-                            .sendMessage(node.id, "/bio", payload)
-                            .addOnSuccessListener {
-                                Log.d("WearSend", "Nachricht erfolgreich gesendet")
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("WearSend", "Senden fehlgeschlagen: ${e.message}", e)
-                            }
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("WearSend", "connectedNodes fehlgeschlagen: ${e.message}", e)
-                }
-        }) {
-            Text("Test senden")
+        Button(onClick = onSendClick) {
+            Text("JSON senden")
         }
     }
 }
