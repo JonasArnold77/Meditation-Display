@@ -38,6 +38,7 @@ import com.samsung.android.service.health.tracking.HealthTrackingService
 import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.HealthTrackerType
 import com.samsung.android.service.health.tracking.data.ValueKey
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
@@ -57,9 +58,12 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     private var heartRate = 0
     private var heartRateStatus = -1
+    private var ibiList: List<Int> = emptyList()
+    private var ibiStatusList: List<Int> = emptyList()
 
     private var lastTimestamp = 0L
     private var sampleCounter = 0
+    private var currentSessionId: String = ""
 
     private val handler = Handler(Looper.getMainLooper())
     private var isStreaming = false
@@ -73,6 +77,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         var streamStatus by mutableStateOf("Stream: Stop")
         var healthStatusText by mutableStateOf("Health: -")
         var heartRateText by mutableStateOf("HR: -")
+        var ibiText by mutableStateOf("IBI: -")
         var sensorText by mutableStateOf("Acc:-  Gyro:-")
     }
 
@@ -122,10 +127,32 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 try {
                     heartRateStatus = dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS)
                     heartRate = dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE)
+
+                    ibiList = try {
+                        dataPoint.getValue(ValueKey.HeartRateSet.IBI_LIST)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+
+                    ibiStatusList = try {
+                        dataPoint.getValue(ValueKey.HeartRateSet.IBI_STATUS_LIST)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+
                     heartRateText = "HR: $heartRate"
-                    Log.d("HeartRate", "Heart rate: $heartRate, status=$heartRateStatus")
+                    ibiText = if (ibiList.isNotEmpty()) {
+                        "IBI: ${ibiList.joinToString(",")}"
+                    } else {
+                        "IBI: -"
+                    }
+
+                    Log.d(
+                        "HeartRate",
+                        "Heart rate: $heartRate, status=$heartRateStatus, ibi=$ibiList, ibiStatus=$ibiStatusList"
+                    )
                 } catch (e: Exception) {
-                    Log.e("HeartRate", "Lesen der HR fehlgeschlagen", e)
+                    Log.e("HeartRate", "Lesen von HR/IBI fehlgeschlagen", e)
                 }
             }
         }
@@ -152,6 +179,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 streamStatus = streamStatus,
                 healthStatusText = healthStatusText,
                 heartRateText = heartRateText,
+                ibiText = ibiText,
                 sensorText = sensorText,
                 onStartClick = { startStreaming() },
                 onStopClick = { stopStreaming() }
@@ -179,7 +207,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         super.onPause()
         sensorManager.unregisterListener(this)
         stopStreaming()
-        stopHeartRateTracking()
         Log.d("WearSensor", "Sensor Listener entfernt")
     }
 
@@ -291,9 +318,12 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private fun startStreaming() {
         if (isStreaming) return
 
+        currentSessionId = "session_${System.currentTimeMillis()}"
+        sampleCounter = 0
+
         isStreaming = true
         streamStatus = "Stream: Start"
-        Log.d("WearStream", "Streaming gestartet")
+        Log.d("WearStream", "Streaming gestartet, sessionId=$currentSessionId")
 
         handler.post(sendRunnable)
     }
@@ -304,7 +334,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         isStreaming = false
         streamStatus = "Stream: Stop"
         handler.removeCallbacks(sendRunnable)
-        Log.d("WearStream", "Streaming gestoppt")
+        Log.d("WearStream", "Streaming gestoppt, sessionId=$currentSessionId")
     }
 
     private fun sendSensorJson() {
@@ -315,9 +345,15 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
         sampleCounter++
 
+        val ibiJsonArray = JSONArray()
+        ibiList.forEach { ibiJsonArray.put(it) }
+
+        val ibiStatusJsonArray = JSONArray()
+        ibiStatusList.forEach { ibiStatusJsonArray.put(it) }
+
         val json = JSONObject().apply {
             put("type", "sensor_sample")
-            put("sessionId", "test_session_001")
+            put("sessionId", currentSessionId)
             put("sampleIndex", sampleCounter)
             put("timestamp", lastTimestamp)
             put("source", "galaxy_watch_4")
@@ -345,6 +381,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 JSONObject().apply {
                     put("bpm", heartRate)
                     put("status", heartRateStatus)
+                    put("ibiMs", ibiJsonArray)
+                    put("ibiStatus", ibiStatusJsonArray)
                 }
             )
         }
@@ -373,7 +411,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("WearSend", "connectedNodes fehlgeschlagen: ${e.message}", e)
+                Log.e("WearSend", "connectedNodes fehlgeschlagen", e)
             }
     }
 }
@@ -383,6 +421,7 @@ fun WearSensorScreen(
     streamStatus: String,
     healthStatusText: String,
     heartRateText: String,
+    ibiText: String,
     sensorText: String,
     onStartClick: () -> Unit,
     onStopClick: () -> Unit
@@ -397,6 +436,7 @@ fun WearSensorScreen(
         Text(streamStatus)
         Text(healthStatusText)
         Text(heartRateText)
+        Text(ibiText)
         Text(sensorText)
 
         Spacer(modifier = Modifier.height(8.dp))
