@@ -181,7 +181,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
                 heartRateText = heartRateText,
                 ibiText = ibiText,
                 sensorText = sensorText,
-                onStartClick = { startStreaming() },
                 onStopClick = { stopStreaming() }
             )
         }
@@ -201,6 +200,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         }
 
         ensureHeartRatePermissionAndConnect()
+        startStreaming()
     }
 
     override fun onPause() {
@@ -322,8 +322,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         sampleCounter = 0
 
         isStreaming = true
-        streamStatus = "Stream: Start"
-        Log.d("WearStream", "Streaming gestartet, sessionId=$currentSessionId")
+        streamStatus = "Stream: Auto"
+        Log.d("WearStream", "Streaming automatisch gestartet, sessionId=$currentSessionId")
 
         handler.post(sendRunnable)
     }
@@ -423,7 +423,6 @@ fun WearSensorScreen(
     heartRateText: String,
     ibiText: String,
     sensorText: String,
-    onStartClick: () -> Unit,
     onStopClick: () -> Unit
 ) {
     Column(
@@ -440,12 +439,6 @@ fun WearSensorScreen(
         Text(sensorText)
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        Button(onClick = onStartClick) {
-            Text("Start")
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
 
         Button(onClick = onStopClick) {
             Text("Stop")
