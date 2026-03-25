@@ -1,16 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+
+    <!-- Für klassische Body-Sensor-Nutzung -->
     <uses-permission android:name="android.permission.BODY_SENSORS" />
+
+    <!-- Für Android 16 / neuere Health-Granular-Permissions -->
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+
+    <!-- Wichtig für Background-Zugriff auf Heart Rate bei Android 13-15 -->
+    <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" />
+
     <application
         android:allowBackup="true"
         android:label="Meditation Bio Wear"
         android:supportsRtl="true"
         android:theme="@style/Theme.MeditationBio">
-
-        <meta-data
-            android:name="com.google.android.wearable.standalone"
-            android:value="true" />
 
         <activity
             android:name=".MainActivity"
@@ -21,5 +29,9 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".WearStreamingService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync|health" />
     </application>
 </manifest>

@@ -1,8 +1,6 @@
 package com.example.meditationbio
 
 import android.util.Log
-import com.example.meditationbio.core.AppRuntimeStore
-import com.example.meditationbio.sensors.SensorSample
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,7 +11,62 @@ import org.json.JSONObject
 
 class MobileWearService : WearableListenerService() {
 
-    private val client = OkHttpClient()
+    companion object {
+        private val staticClient = OkHttpClient()
+
+        private const val MEDITATION_CONFIG_WEBHOOK_URL =
+            "https://ingo-e-arnold.app.n8n.cloud/webhook-test/b74b3249-1912-4e2a-ad0b-f412a0644cb6"
+
+        fun sendMeditationConfigToN8n(
+            language: String,
+            goal: String,
+            durationMinutes: Int,
+            experienceLevel: String,
+            style: String,
+            tone: String,
+            targetAudience: String,
+            spiritual: Boolean,
+            context: String,
+            focus: String,
+            musicRecommendation: Boolean,
+            specialNotes: String
+        ) {
+            val json = JSONObject().apply {
+                put("language", language)
+                put("goal", goal)
+                put("duration_minutes", durationMinutes)
+                put("experience_level", experienceLevel)
+                put("style", style)
+                put("tone", tone)
+                put("target_audience", targetAudience)
+                put("spiritual", spiritual)
+                put("context", context)
+                put("focus", focus)
+                put("music_recommendation", musicRecommendation)
+                put("special_notes", specialNotes)
+            }
+
+            val body = json.toString()
+                .toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url(MEDITATION_CONFIG_WEBHOOK_URL)
+                .post(body)
+                .build()
+
+            Thread {
+                try {
+                    staticClient.newCall(request).execute().use { response ->
+                        MainActivity.sendStatus =
+                            "Meditation an n8n gesendet. Code=${response.code}, success=${response.isSuccessful}"
+                    }
+                } catch (e: Exception) {
+                    MainActivity.sendStatus =
+                        "Fehler beim Senden der Meditation: ${e.message}"
+                }
+            }.start()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -29,84 +82,50 @@ class MobileWearService : WearableListenerService() {
         MainActivity.latestPayload = payload
 
         if (event.path == "/bio") {
-            parseAndStoreSample(payload)
-            sendToN8n(payload)
+            updateLiveBioDisplay(payload)
         }
     }
 
-    private fun parseAndStoreSample(jsonPayload: String) {
+    private fun updateLiveBioDisplay(jsonPayload: String) {
         try {
             val obj = JSONObject(jsonPayload)
 
-            val accelerometer = obj.getJSONObject("accelerometer")
-            val gyroscope = obj.getJSONObject("gyroscope")
-            val heartRate = obj.getJSONObject("heartRate")
+            val accelerometer = obj.optJSONObject("accelerometer")
+            val gyroscope = obj.optJSONObject("gyroscope")
+            val heartRate = obj.optJSONObject("heartRate")
 
-            val ibiMsArray = heartRate.optJSONArray("ibiMs")
-            val ibiStatusArray = heartRate.optJSONArray("ibiStatus")
-
-            val ibiMs = mutableListOf<Int>()
-            val ibiStatus = mutableListOf<Int>()
-
-            if (ibiMsArray != null) {
-                for (i in 0 until ibiMsArray.length()) {
-                    ibiMs.add(ibiMsArray.optInt(i))
-                }
+            val accelText = if (accelerometer != null) {
+                "Accel: x=${accelerometer.optDouble("x", 0.0)}, y=${accelerometer.optDouble("y", 0.0)}, z=${accelerometer.optDouble("z", 0.0)}"
+            } else {
+                "Accel: -"
             }
 
-            if (ibiStatusArray != null) {
-                for (i in 0 until ibiStatusArray.length()) {
-                    ibiStatus.add(ibiStatusArray.optInt(i))
-                }
+            val gyroText = if (gyroscope != null) {
+                "Gyro: x=${gyroscope.optDouble("x", 0.0)}, y=${gyroscope.optDouble("y", 0.0)}, z=${gyroscope.optDouble("z", 0.0)}"
+            } else {
+                "Gyro: -"
             }
 
-            val sample = SensorSample(
-                sessionId = obj.optString("sessionId", "unknown_session"),
-                sampleIndex = obj.optInt("sampleIndex", 0),
-                timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+            val hrText = if (heartRate != null) {
+                "HR: bpm=${heartRate.optInt("bpm", 0)}, status=${heartRate.optInt("status", -1)}"
+            } else {
+                "HR: -"
+            }
 
-                accelX = accelerometer.optDouble("x", 0.0),
-                accelY = accelerometer.optDouble("y", 0.0),
-                accelZ = accelerometer.optDouble("z", 0.0),
+            val ibiText = if (heartRate != null && heartRate.has("ibiMs")) {
+                "IBI: ${heartRate.optJSONArray("ibiMs")}"
+            } else {
+                "IBI: -"
+            }
 
-                gyroX = gyroscope.optDouble("x", 0.0),
-                gyroY = gyroscope.optDouble("y", 0.0),
-                gyroZ = gyroscope.optDouble("z", 0.0),
-
-                heartRateBpm = heartRate.optInt("bpm", 0),
-                heartRateStatus = heartRate.optInt("status", -1),
-                ibiMs = ibiMs,
-                ibiStatus = ibiStatus
-            )
-
-            AppRuntimeStore.sensorBuffer.add(sample)
-            Log.d("MobileWearService", "SensorSample gespeichert: ${sample.sessionId} #${sample.sampleIndex}")
+            MainActivity.liveBioText = """
+                $hrText
+                $ibiText
+                $accelText
+                $gyroText
+            """.trimIndent()
         } catch (e: Exception) {
-            Log.e("MobileWearService", "Fehler beim Parsen des SensorSample", e)
+            MainActivity.liveBioText = "Fehler beim Parsen der Bio-Daten: ${e.message}"
         }
-    }
-
-    private fun sendToN8n(jsonPayload: String) {
-        val webhookUrl = "https://DEIN-N8N-SERVER/webhook/meditation"
-
-        val body = jsonPayload.toRequestBody("application/json".toMediaType())
-
-        val request = Request.Builder()
-            .url(webhookUrl)
-            .post(body)
-            .build()
-
-        Thread {
-            try {
-                client.newCall(request).execute().use { response ->
-                    Log.d(
-                        "N8N",
-                        "Webhook gesendet. Code=${response.code}, success=${response.isSuccessful}"
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("N8N", "Fehler beim Senden an n8n: ${e.message}", e)
-            }
-        }.start()
     }
 }

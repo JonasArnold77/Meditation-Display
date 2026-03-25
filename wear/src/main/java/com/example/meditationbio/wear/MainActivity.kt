@@ -1,24 +1,16 @@
 package com.example.meditationbio.wear
 
 import android.Manifest
-import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
+import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -30,417 +22,113 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.google.android.gms.wearable.Wearable
-import com.samsung.android.service.health.tracking.ConnectionListener
-import com.samsung.android.service.health.tracking.HealthTracker
-import com.samsung.android.service.health.tracking.HealthTrackerException
-import com.samsung.android.service.health.tracking.HealthTrackingService
-import com.samsung.android.service.health.tracking.data.DataPoint
-import com.samsung.android.service.health.tracking.data.HealthTrackerType
-import com.samsung.android.service.health.tracking.data.ValueKey
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.Locale
 
-class MainActivity : ComponentActivity(), SensorEventListener {
-
-    private lateinit var sensorManager: SensorManager
-    private var accelerometer: Sensor? = null
-    private var gyroscope: Sensor? = null
-
-    private var accelX = 0f
-    private var accelY = 0f
-    private var accelZ = 0f
-
-    private var gyroX = 0f
-    private var gyroY = 0f
-    private var gyroZ = 0f
-
-    private var heartRate = 0
-    private var heartRateStatus = -1
-    private var ibiList: List<Int> = emptyList()
-    private var ibiStatusList: List<Int> = emptyList()
-
-    private var lastTimestamp = 0L
-    private var sampleCounter = 0
-    private var currentSessionId: String = ""
-
-    private val handler = Handler(Looper.getMainLooper())
-    private var isStreaming = false
-    private val sendIntervalMs = 1000L
-
-    private var healthTrackingService: HealthTrackingService? = null
-    private var heartRateTracker: HealthTracker? = null
-    private var isHealthConnected = false
+class MainActivity : ComponentActivity() {
 
     companion object {
-        var streamStatus by mutableStateOf("Stream: Stop")
-        var healthStatusText by mutableStateOf("Health: -")
-        var heartRateText by mutableStateOf("HR: -")
-        var ibiText by mutableStateOf("IBI: -")
-        var sensorText by mutableStateOf("Acc:-  Gyro:-")
+        var permissionStatus by mutableStateOf("Prüfe Berechtigungen ...")
     }
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                healthStatusText = "Health: OK"
-                connectToHealthPlatform()
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            val allGranted = result.values.all { it }
+            if (allGranted) {
+                permissionStatus = "Berechtigungen erteilt"
+                startStreamingService()
             } else {
-                healthStatusText = "Health: NoPerm"
+                permissionStatus = "Nicht alle Berechtigungen erteilt"
             }
         }
-
-    private val connectionListener = object : ConnectionListener {
-        override fun onConnectionSuccess() {
-            isHealthConnected = true
-            healthStatusText = "Health: Verbunden"
-            Log.d("HeartRate", "Health Platform verbunden")
-            startHeartRateTracking()
-        }
-
-        override fun onConnectionEnded() {
-            isHealthConnected = false
-            healthStatusText = "Health: Getrennt"
-            Log.d("HeartRate", "Health Platform Verbindung beendet")
-        }
-
-        override fun onConnectionFailed(exception: HealthTrackerException) {
-            isHealthConnected = false
-            healthStatusText = "Health: Fehler"
-            Log.e("HeartRate", "Verbindung fehlgeschlagen", exception)
-        }
-    }
-
-    private val sendRunnable = object : Runnable {
-        override fun run() {
-            if (isStreaming) {
-                sendSensorJson()
-                handler.postDelayed(this, sendIntervalMs)
-            }
-        }
-    }
-
-    private val heartRateListener = object : HealthTracker.TrackerEventListener {
-        override fun onDataReceived(dataPoints: List<DataPoint>) {
-            for (dataPoint in dataPoints) {
-                try {
-                    heartRateStatus = dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS)
-                    heartRate = dataPoint.getValue(ValueKey.HeartRateSet.HEART_RATE)
-
-                    ibiList = try {
-                        dataPoint.getValue(ValueKey.HeartRateSet.IBI_LIST)
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-
-                    ibiStatusList = try {
-                        dataPoint.getValue(ValueKey.HeartRateSet.IBI_STATUS_LIST)
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-
-                    heartRateText = "HR: $heartRate"
-                    ibiText = if (ibiList.isNotEmpty()) {
-                        "IBI: ${ibiList.joinToString(",")}"
-                    } else {
-                        "IBI: -"
-                    }
-
-                    Log.d(
-                        "HeartRate",
-                        "Heart rate: $heartRate, status=$heartRateStatus, ibi=$ibiList, ibiStatus=$ibiStatusList"
-                    )
-                } catch (e: Exception) {
-                    Log.e("HeartRate", "Lesen von HR/IBI fehlgeschlagen", e)
-                }
-            }
-        }
-
-        override fun onError(trackerError: HealthTracker.TrackerError) {
-            healthStatusText = "Health: Error"
-            Log.e("HeartRate", "Tracker Error: $trackerError")
-        }
-
-        override fun onFlushCompleted() {
-            Log.d("HeartRate", "Flush completed")
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        ensurePermissionsAndStart()
 
         setContent {
-            WearSensorScreen(
-                streamStatus = streamStatus,
-                healthStatusText = healthStatusText,
-                heartRateText = heartRateText,
-                ibiText = ibiText,
-                sensorText = sensorText,
-                onStopClick = { stopStreaming() }
+            WearServiceScreen(
+                permissionStatus = permissionStatus,
+                onStopClick = {
+                    val stopIntent = Intent(this, WearStreamingService::class.java).apply {
+                        action = WearStreamingService.ACTION_STOP
+                    }
+                    startService(stopIntent)
+                },
+                onRetryClick = {
+                    ensurePermissionsAndStart()
+                }
             )
         }
     }
 
-    override fun onResume() {
-        super.onResume()
+    private fun ensurePermissionsAndStart() {
+        val permissions = mutableListOf<String>()
 
-        accelerometer?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-            Log.d("WearSensor", "Accelerometer registriert")
+        // Klassische Sensor-Permission
+        permissions.add(Manifest.permission.BODY_SENSORS)
+
+        // Android 13-15: Background body sensors
+        if (Build.VERSION.SDK_INT >= 33) {
+            permissions.add("android.permission.BODY_SENSORS_BACKGROUND")
         }
 
-        gyroscope?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-            Log.d("WearSensor", "Gyroskop registriert")
+        // Android 16+: granulare Heart-Rate-Permission
+        if (Build.VERSION.SDK_INT >= 36) {
+            permissions.add("android.permission.health.READ_HEART_RATE")
         }
 
-        ensureHeartRatePermissionAndConnect()
-        startStreaming()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        sensorManager.unregisterListener(this)
-        stopStreaming()
-        Log.d("WearSensor", "Sensor Listener entfernt")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        stopStreaming()
-        stopHeartRateTracking()
-        try {
-            healthTrackingService?.disconnectService()
-        } catch (e: Exception) {
-            Log.e("HeartRate", "disconnectService fehlgeschlagen", e)
-        }
-    }
-
-    override fun onSensorChanged(event: SensorEvent?) {
-        event ?: return
-
-        when (event.sensor.type) {
-            Sensor.TYPE_ACCELEROMETER -> {
-                accelX = event.values[0]
-                accelY = event.values[1]
-                accelZ = event.values[2]
-                lastTimestamp = System.currentTimeMillis()
-            }
-
-            Sensor.TYPE_GYROSCOPE -> {
-                gyroX = event.values[0]
-                gyroY = event.values[1]
-                gyroZ = event.values[2]
-                lastTimestamp = System.currentTimeMillis()
-            }
+        val missing = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
-        sensorText = String.format(
-            Locale.US,
-            "A %.1f %.1f %.1f\nG %.1f %.1f %.1f",
-            accelX, accelY, accelZ,
-            gyroX, gyroY, gyroZ
-        )
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        Log.d("WearSensor", "Accuracy geändert: sensor=${sensor?.name}, accuracy=$accuracy")
-    }
-
-    private fun ensureHeartRatePermissionAndConnect() {
-        if (
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BODY_SENSORS
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            if (!isHealthConnected) {
-                connectToHealthPlatform()
-            }
+        if (missing.isEmpty()) {
+            permissionStatus = "Berechtigungen vorhanden"
+            startStreamingService()
         } else {
-            permissionLauncher.launch(Manifest.permission.BODY_SENSORS)
+            permissionStatus = "Fordere Berechtigungen an"
+            permissionLauncher.launch(missing.toTypedArray())
         }
     }
 
-    private fun connectToHealthPlatform() {
-        try {
-            healthTrackingService = HealthTrackingService(connectionListener, this)
-            healthTrackingService?.connectService()
-            healthStatusText = "Health: Verbinde"
-            Log.d("HeartRate", "Verbindung zur Health Platform angefordert")
-        } catch (e: Exception) {
-            healthStatusText = "Health: Fehler"
-            Log.e("HeartRate", "HealthTrackingService Fehler", e)
+    private fun startStreamingService() {
+        val startIntent = Intent(this, WearStreamingService::class.java).apply {
+            action = WearStreamingService.ACTION_START
         }
-    }
-
-    private fun startHeartRateTracking() {
-        val service = healthTrackingService ?: return
-
-        try {
-            val trackers = service.trackingCapability.supportHealthTrackerTypes
-            if (!trackers.contains(HealthTrackerType.HEART_RATE_CONTINUOUS)) {
-                healthStatusText = "Health: Kein HR"
-                Log.e("HeartRate", "HEART_RATE_CONTINUOUS nicht unterstützt")
-                return
-            }
-
-            heartRateTracker?.unsetEventListener()
-            heartRateTracker = service.getHealthTracker(HealthTrackerType.HEART_RATE_CONTINUOUS)
-            heartRateTracker?.setEventListener(heartRateListener)
-
-            healthStatusText = "Health: HR aktiv"
-            Log.d("HeartRate", "Heart Rate Tracking gestartet")
-        } catch (e: HealthTrackerException) {
-            healthStatusText = "Health: Fehler"
-            Log.e("HeartRate", "Tracker-Fehler", e)
-        } catch (e: Exception) {
-            healthStatusText = "Health: Fehler"
-            Log.e("HeartRate", "Start fehlgeschlagen", e)
-        }
-    }
-
-    private fun stopHeartRateTracking() {
-        try {
-            heartRateTracker?.unsetEventListener()
-            heartRateTracker = null
-            Log.d("HeartRate", "Heart Rate Tracking gestoppt")
-        } catch (e: Exception) {
-            Log.e("HeartRate", "Stop fehlgeschlagen", e)
-        }
-    }
-
-    private fun startStreaming() {
-        if (isStreaming) return
-
-        currentSessionId = "session_${System.currentTimeMillis()}"
-        sampleCounter = 0
-
-        isStreaming = true
-        streamStatus = "Stream: Auto"
-        Log.d("WearStream", "Streaming automatisch gestartet, sessionId=$currentSessionId")
-
-        handler.post(sendRunnable)
-    }
-
-    private fun stopStreaming() {
-        if (!isStreaming) return
-
-        isStreaming = false
-        streamStatus = "Stream: Stop"
-        handler.removeCallbacks(sendRunnable)
-        Log.d("WearStream", "Streaming gestoppt, sessionId=$currentSessionId")
-    }
-
-    private fun sendSensorJson() {
-        if (lastTimestamp == 0L) {
-            Log.d("WearSend", "Noch keine Sensordaten vorhanden")
-            return
-        }
-
-        sampleCounter++
-
-        val ibiJsonArray = JSONArray()
-        ibiList.forEach { ibiJsonArray.put(it) }
-
-        val ibiStatusJsonArray = JSONArray()
-        ibiStatusList.forEach { ibiStatusJsonArray.put(it) }
-
-        val json = JSONObject().apply {
-            put("type", "sensor_sample")
-            put("sessionId", currentSessionId)
-            put("sampleIndex", sampleCounter)
-            put("timestamp", lastTimestamp)
-            put("source", "galaxy_watch_4")
-
-            put(
-                "accelerometer",
-                JSONObject().apply {
-                    put("x", accelX.toDouble())
-                    put("y", accelY.toDouble())
-                    put("z", accelZ.toDouble())
-                }
-            )
-
-            put(
-                "gyroscope",
-                JSONObject().apply {
-                    put("x", gyroX.toDouble())
-                    put("y", gyroY.toDouble())
-                    put("z", gyroZ.toDouble())
-                }
-            )
-
-            put(
-                "heartRate",
-                JSONObject().apply {
-                    put("bpm", heartRate)
-                    put("status", heartRateStatus)
-                    put("ibiMs", ibiJsonArray)
-                    put("ibiStatus", ibiStatusJsonArray)
-                }
-            )
-        }
-
-        val payload = json.toString().toByteArray(Charsets.UTF_8)
-
-        Wearable.getNodeClient(this).connectedNodes
-            .addOnSuccessListener { nodes ->
-                Log.d("WearSend", "Gefundene Nodes: ${nodes.size}")
-
-                if (nodes.isEmpty()) {
-                    Log.d("WearSend", "Kein verbundenes Handy gefunden")
-                }
-
-                nodes.forEach { node ->
-                    Log.d("WearSend", "Sende Sensor-JSON an ${node.displayName}: $json")
-
-                    Wearable.getMessageClient(this)
-                        .sendMessage(node.id, "/bio", payload)
-                        .addOnSuccessListener {
-                            Log.d("WearSend", "Sensor-JSON erfolgreich gesendet")
-                        }
-                        .addOnFailureListener { e ->
-                            Log.e("WearSend", "Senden fehlgeschlagen: ${e.message}", e)
-                        }
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e("WearSend", "connectedNodes fehlgeschlagen", e)
-            }
+        startForegroundService(startIntent)
+        permissionStatus = "Streaming-Service gestartet"
     }
 }
 
 @Composable
-fun WearSensorScreen(
-    streamStatus: String,
-    healthStatusText: String,
-    heartRateText: String,
-    ibiText: String,
-    sensorText: String,
-    onStopClick: () -> Unit
+fun WearServiceScreen(
+    permissionStatus: String,
+    onStopClick: () -> Unit,
+    onRetryClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(8.dp),
+            .padding(12.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(streamStatus)
-        Text(healthStatusText)
-        Text(heartRateText)
-        Text(ibiText)
-        Text(sensorText)
+        Text("Streaming läuft im Service")
+        Text(
+            text = permissionStatus,
+            modifier = Modifier.padding(top = 8.dp)
+        )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = onRetryClick,
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
+            Text("Berechtigungen prüfen")
+        }
 
-        Button(onClick = onStopClick) {
+        Button(
+            onClick = onStopClick,
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
             Text("Stop")
         }
     }
