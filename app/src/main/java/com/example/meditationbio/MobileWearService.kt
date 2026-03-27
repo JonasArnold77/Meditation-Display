@@ -57,12 +57,14 @@ class MobileWearService : WearableListenerService() {
             Thread {
                 try {
                     staticClient.newCall(request).execute().use { response ->
-                        MainActivity.sendStatus =
+                        MainActivity.updateSendStatus(
                             "Meditation an n8n gesendet. Code=${response.code}, success=${response.isSuccessful}"
+                        )
                     }
                 } catch (e: Exception) {
-                    MainActivity.sendStatus =
+                    MainActivity.updateSendStatus(
                         "Fehler beim Senden der Meditation: ${e.message}"
+                    )
                 }
             }.start()
         }
@@ -79,7 +81,7 @@ class MobileWearService : WearableListenerService() {
         val payload = String(event.data, Charsets.UTF_8)
         Log.d("MobileWearService", "Payload: $payload")
 
-        MainActivity.latestPayload = payload
+        MainActivity.updateLatestPayload(payload)
 
         if (event.path == "/bio") {
             updateLiveBioDisplay(payload)
@@ -118,14 +120,18 @@ class MobileWearService : WearableListenerService() {
                 "IBI: -"
             }
 
-            MainActivity.liveBioText = """
+            MainActivity.updateLiveBioText(
+                """
                 $hrText
                 $ibiText
                 $accelText
                 $gyroText
-            """.trimIndent()
+                """.trimIndent()
+            )
         } catch (e: Exception) {
-            MainActivity.liveBioText = "Fehler beim Parsen der Bio-Daten: ${e.message}"
+            MainActivity.updateLiveBioText(
+                "Fehler beim Parsen der Bio-Daten: ${e.message}"
+            )
         }
     }
 }
