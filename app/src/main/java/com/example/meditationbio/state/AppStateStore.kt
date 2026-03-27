@@ -11,6 +11,7 @@ import com.example.meditationbio.model.MeditationSession
 import com.example.meditationbio.model.PostSessionQuestionnaire
 import com.example.meditationbio.model.PreSessionQuestionnaire
 import com.example.meditationbio.model.ProblemField
+import com.example.meditationbio.model.UserPreferences
 import com.example.meditationbio.ui.AppScreen
 
 object AppStateStore {
@@ -51,6 +52,10 @@ object AppStateStore {
 
     fun updateEffectiveness(value: MeditationEffectiveness) {
         uiState = uiState.copy(effectiveness = value)
+    }
+
+    fun updateUserPreferences(value: UserPreferences) {
+        uiState = uiState.copy(userPreferences = value)
     }
 
     fun addCompletedSession(record: CompletedSessionRecord) {

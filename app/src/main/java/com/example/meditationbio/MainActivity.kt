@@ -17,6 +17,7 @@ import com.example.meditationbio.ui.screens.HomeScreen
 import com.example.meditationbio.ui.screens.MeditationSessionScreen
 import com.example.meditationbio.ui.screens.PostSessionQuestionnaireScreen
 import com.example.meditationbio.ui.screens.PreSessionQuestionnaireScreen
+import com.example.meditationbio.ui.screens.ProfileScreen
 import com.example.meditationbio.ui.screens.ProblemFieldsScreen
 import com.example.meditationbio.ui.screens.ProgressScreen
 import com.example.meditationbio.ui.screens.RecommendationDetailScreen
@@ -61,6 +62,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenProgress = {
                                 AppStateStore.navigateTo(AppScreen.PROGRESS)
+                            },
+                            onOpenProfile = {
+                                AppStateStore.navigateTo(AppScreen.PROFILE)
                             }
                         )
                     }
@@ -150,7 +154,6 @@ class MainActivity : ComponentActivity() {
                             liveBioText = uiState.liveBioText,
                             latestPayload = uiState.latestPayload,
                             onStopSession = {
-                                // WICHTIG: Session hier NICHT löschen
                                 AppStateStore.navigateTo(AppScreen.POST_BLOOD_PRESSURE)
                             }
                         )
@@ -230,12 +233,10 @@ class MainActivity : ComponentActivity() {
                         SessionResultScreen(
                             effectiveness = uiState.effectiveness,
                             onOpenProblemFields = {
-                                // Erst jetzt Session aufräumen
                                 AppStateStore.stopSession()
                                 AppStateStore.navigateTo(AppScreen.PROBLEM_FIELDS)
                             },
                             onContinue = {
-                                // Erst jetzt Session aufräumen
                                 AppStateStore.stopSession()
                                 AppStateStore.navigateTo(AppScreen.HOME)
                             }
@@ -246,6 +247,20 @@ class MainActivity : ComponentActivity() {
                         ProgressScreen(
                             completedSessions = uiState.completedSessions,
                             onBack = {
+                                AppStateStore.navigateTo(AppScreen.HOME)
+                            }
+                        )
+                    }
+
+                    AppScreen.PROFILE -> {
+                        ProfileScreen(
+                            initialPreferences = uiState.userPreferences,
+                            onBack = {
+                                AppStateStore.navigateTo(AppScreen.HOME)
+                            },
+                            onSave = { preferences ->
+                                AppStateStore.updateUserPreferences(preferences)
+                                AppStateStore.updateSendStatus("Präferenzen gespeichert.")
                                 AppStateStore.navigateTo(AppScreen.HOME)
                             }
                         )

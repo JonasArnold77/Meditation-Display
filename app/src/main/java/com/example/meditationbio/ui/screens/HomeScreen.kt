@@ -15,7 +15,8 @@ fun HomeScreen(
     sendStatus: String,
     onOpenProblemFields: () -> Unit,
     onOpenEditor: () -> Unit,
-    onOpenProgress: () -> Unit
+    onOpenProgress: () -> Unit,
+    onOpenProfile: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -49,6 +50,13 @@ fun HomeScreen(
             modifier = Modifier.padding(top = 8.dp)
         ) {
             Text("Fortschritt")
+        }
+
+        Button(
+            onClick = onOpenProfile,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Profil")
         }
 
         Text(

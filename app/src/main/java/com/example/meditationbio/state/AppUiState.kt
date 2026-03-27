@@ -9,6 +9,7 @@ import com.example.meditationbio.model.MeditationSession
 import com.example.meditationbio.model.PostSessionQuestionnaire
 import com.example.meditationbio.model.PreSessionQuestionnaire
 import com.example.meditationbio.model.ProblemField
+import com.example.meditationbio.model.UserPreferences
 import com.example.meditationbio.ui.AppScreen
 
 data class AppUiState(
@@ -23,6 +24,7 @@ data class AppUiState(
     val bloodPressureBefore: BloodPressureMeasurement = BloodPressureMeasurement(),
     val bloodPressureAfter: BloodPressureMeasurement = BloodPressureMeasurement(),
     val effectiveness: MeditationEffectiveness? = null,
+    val userPreferences: UserPreferences = UserPreferences(),
     val editorConfig: MeditationEditorConfig = MeditationEditorConfig(),
     val latestPayload: String = "Noch keine Daten von der Uhr empfangen.",
     val liveBioText: String = "Noch keine Bio-Daten geparst.",

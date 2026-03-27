@@ -12,5 +12,6 @@ enum class AppScreen {
     POST_SESSION_QUESTIONNAIRE,
     SESSION_RESULT,
     PROGRESS,
+    PROFILE,
     EDITOR
 }
