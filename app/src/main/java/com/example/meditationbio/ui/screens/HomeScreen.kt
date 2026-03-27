@@ -14,7 +14,8 @@ fun HomeScreen(
     liveBioText: String,
     sendStatus: String,
     onOpenProblemFields: () -> Unit,
-    onOpenEditor: () -> Unit
+    onOpenEditor: () -> Unit,
+    onOpenProgress: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -41,6 +42,13 @@ fun HomeScreen(
             modifier = Modifier.padding(top = 8.dp)
         ) {
             Text("Editor")
+        }
+
+        Button(
+            onClick = onOpenProgress,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Text("Fortschritt")
         }
 
         Text(

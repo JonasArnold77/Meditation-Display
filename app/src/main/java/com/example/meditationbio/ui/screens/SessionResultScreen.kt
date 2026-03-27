@@ -13,7 +13,8 @@ import com.example.meditationbio.model.MeditationEffectiveness
 @androidx.compose.runtime.Composable
 fun SessionResultScreen(
     effectiveness: MeditationEffectiveness?,
-    onContinue: () -> Unit
+    onContinue: () -> Unit,
+    onOpenProblemFields: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -49,10 +50,17 @@ fun SessionResultScreen(
         )
 
         Button(
-            onClick = onContinue,
+            onClick = onOpenProblemFields,
             modifier = Modifier.padding(top = 24.dp)
         ) {
-            Text("Zurück zur Startseite")
+            Text("Weitere Empfehlung ansehen")
+        }
+
+        Button(
+            onClick = onContinue,
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
+            Text("Zur Startseite")
         }
     }
 }

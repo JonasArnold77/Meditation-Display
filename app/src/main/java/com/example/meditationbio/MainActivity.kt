@@ -8,6 +8,7 @@ import androidx.compose.material3.Surface
 import com.example.meditationbio.data.ProblemFieldRepository
 import com.example.meditationbio.data.RecommendationRepository
 import com.example.meditationbio.logic.MeditationEffectivenessEvaluator
+import com.example.meditationbio.model.CompletedSessionRecord
 import com.example.meditationbio.state.AppStateStore
 import com.example.meditationbio.ui.AppScreen
 import com.example.meditationbio.ui.screens.BloodPressureInputScreen
@@ -17,6 +18,7 @@ import com.example.meditationbio.ui.screens.MeditationSessionScreen
 import com.example.meditationbio.ui.screens.PostSessionQuestionnaireScreen
 import com.example.meditationbio.ui.screens.PreSessionQuestionnaireScreen
 import com.example.meditationbio.ui.screens.ProblemFieldsScreen
+import com.example.meditationbio.ui.screens.ProgressScreen
 import com.example.meditationbio.ui.screens.RecommendationDetailScreen
 import com.example.meditationbio.ui.screens.RecommendationsScreen
 import com.example.meditationbio.ui.screens.SessionResultScreen
@@ -56,6 +58,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onOpenEditor = {
                                 AppStateStore.navigateTo(AppScreen.EDITOR)
+                            },
+                            onOpenProgress = {
+                                AppStateStore.navigateTo(AppScreen.PROGRESS)
                             }
                         )
                     }
@@ -69,7 +74,10 @@ class MainActivity : ComponentActivity() {
                             onProblemFieldSelected = { field ->
                                 AppStateStore.selectProblemField(field)
                                 AppStateStore.setRecommendations(
-                                    RecommendationRepository.getForProblemField(field.id)
+                                    RecommendationRepository.getForProblemField(
+                                        problemFieldId = field.id,
+                                        completedSessions = uiState.completedSessions
+                                    )
                                 )
                                 AppStateStore.navigateTo(AppScreen.RECOMMENDATIONS)
                             }
@@ -142,7 +150,7 @@ class MainActivity : ComponentActivity() {
                             liveBioText = uiState.liveBioText,
                             latestPayload = uiState.latestPayload,
                             onStopSession = {
-                                AppStateStore.stopSession()
+                                // WICHTIG: Session hier NICHT löschen
                                 AppStateStore.navigateTo(AppScreen.POST_BLOOD_PRESSURE)
                             }
                         )
@@ -191,6 +199,25 @@ class MainActivity : ComponentActivity() {
                                 )
 
                                 AppStateStore.updateEffectiveness(effectiveness)
+
+                                val recommendation = uiState.selectedRecommendation
+                                val problemField = uiState.selectedProblemField
+                                val session = uiState.currentSession
+
+                                if (recommendation != null && problemField != null && session != null) {
+                                    AppStateStore.addCompletedSession(
+                                        CompletedSessionRecord(
+                                            sessionId = session.sessionId,
+                                            problemFieldId = problemField.id,
+                                            recommendationId = recommendation.id,
+                                            recommendationTitle = recommendation.title,
+                                            effectivenessScore = effectiveness.score,
+                                            summary = effectiveness.summary,
+                                            timestampMillis = System.currentTimeMillis()
+                                        )
+                                    )
+                                }
+
                                 AppStateStore.updateSendStatus(
                                     "Session abgeschlossen. Daten wurden an n8n gesendet."
                                 )
@@ -202,7 +229,23 @@ class MainActivity : ComponentActivity() {
                     AppScreen.SESSION_RESULT -> {
                         SessionResultScreen(
                             effectiveness = uiState.effectiveness,
+                            onOpenProblemFields = {
+                                // Erst jetzt Session aufräumen
+                                AppStateStore.stopSession()
+                                AppStateStore.navigateTo(AppScreen.PROBLEM_FIELDS)
+                            },
                             onContinue = {
+                                // Erst jetzt Session aufräumen
+                                AppStateStore.stopSession()
+                                AppStateStore.navigateTo(AppScreen.HOME)
+                            }
+                        )
+                    }
+
+                    AppScreen.PROGRESS -> {
+                        ProgressScreen(
+                            completedSessions = uiState.completedSessions,
+                            onBack = {
                                 AppStateStore.navigateTo(AppScreen.HOME)
                             }
                         )

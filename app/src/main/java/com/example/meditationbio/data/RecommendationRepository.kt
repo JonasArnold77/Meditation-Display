@@ -1,11 +1,15 @@
 package com.example.meditationbio.data
 
+import com.example.meditationbio.model.CompletedSessionRecord
 import com.example.meditationbio.model.MeditationRecommendation
 
 object RecommendationRepository {
 
-    fun getForProblemField(problemFieldId: String): List<MeditationRecommendation> {
-        val all = listOf(
+    fun getForProblemField(
+        problemFieldId: String,
+        completedSessions: List<CompletedSessionRecord> = emptyList()
+    ): List<MeditationRecommendation> {
+        val base = listOf(
             MeditationRecommendation(
                 id = "stress_1",
                 problemFieldId = "stress",
@@ -76,8 +80,38 @@ object RecommendationRepository {
                 tone = "ermutigend",
                 effectivenessLabel = "mittel"
             )
-        )
+        ).filter { it.problemFieldId == problemFieldId }
 
-        return all.filter { it.problemFieldId == problemFieldId }
+        return base
+            .map { recommendation ->
+                val matching = completedSessions.filter { it.recommendationId == recommendation.id }
+                if (matching.isEmpty()) {
+                    recommendation
+                } else {
+                    val avg = matching.map { it.effectivenessScore }.average().toInt()
+                    recommendation.copy(
+                        effectivenessLabel = labelFromScore(avg)
+                    )
+                }
+            }
+            .sortedByDescending { recommendation ->
+                scoreFromLabel(recommendation.effectivenessLabel)
+            }
+    }
+
+    private fun labelFromScore(score: Int): String {
+        return when {
+            score >= 75 -> "hoch"
+            score >= 55 -> "mittel"
+            else -> "niedrig"
+        }
+    }
+
+    private fun scoreFromLabel(label: String): Int {
+        return when (label) {
+            "hoch" -> 3
+            "mittel" -> 2
+            else -> 1
+        }
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.meditationbio.model.BloodPressureMeasurement
+import com.example.meditationbio.model.CompletedSessionRecord
 import com.example.meditationbio.model.MeditationEffectiveness
 import com.example.meditationbio.model.MeditationRecommendation
 import com.example.meditationbio.model.MeditationSession
@@ -50,6 +51,12 @@ object AppStateStore {
 
     fun updateEffectiveness(value: MeditationEffectiveness) {
         uiState = uiState.copy(effectiveness = value)
+    }
+
+    fun addCompletedSession(record: CompletedSessionRecord) {
+        uiState = uiState.copy(
+            completedSessions = uiState.completedSessions + record
+        )
     }
 
     fun startSession() {
