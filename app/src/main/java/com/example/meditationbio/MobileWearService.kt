@@ -1,6 +1,12 @@
 package com.example.meditationbio
 
 import android.util.Log
+import com.example.meditationbio.model.BloodPressureMeasurement
+import com.example.meditationbio.model.MeditationRecommendation
+import com.example.meditationbio.model.MeditationSession
+import com.example.meditationbio.model.PostSessionQuestionnaire
+import com.example.meditationbio.model.PreSessionQuestionnaire
+import com.example.meditationbio.model.ProblemField
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import okhttp3.MediaType.Companion.toMediaType
@@ -15,6 +21,9 @@ class MobileWearService : WearableListenerService() {
         private val staticClient = OkHttpClient()
 
         private const val MEDITATION_CONFIG_WEBHOOK_URL =
+            "https://ingo-e-arnold.app.n8n.cloud/webhook-test/b74b3249-1912-4e2a-ad0b-f412a0644cb6"
+
+        private const val SESSION_RESULT_WEBHOOK_URL =
             "https://ingo-e-arnold.app.n8n.cloud/webhook-test/b74b3249-1912-4e2a-ad0b-f412a0644cb6"
 
         fun sendMeditationConfigToN8n(
@@ -32,6 +41,7 @@ class MobileWearService : WearableListenerService() {
             specialNotes: String
         ) {
             val json = JSONObject().apply {
+                put("type", "meditation_config")
                 put("language", language)
                 put("goal", goal)
                 put("duration_minutes", durationMinutes)
@@ -46,25 +56,129 @@ class MobileWearService : WearableListenerService() {
                 put("special_notes", specialNotes)
             }
 
+            postJson(
+                url = MEDITATION_CONFIG_WEBHOOK_URL,
+                json = json,
+                onSuccess = { code, success ->
+                    MainActivity.updateSendStatus(
+                        "Meditation an n8n gesendet. Code=$code, success=$success"
+                    )
+                },
+                onError = { message ->
+                    MainActivity.updateSendStatus(
+                        "Fehler beim Senden der Meditation: $message"
+                    )
+                }
+            )
+        }
+
+        fun sendCompletedSessionToN8n(
+            session: MeditationSession?,
+            problemField: ProblemField?,
+            recommendation: MeditationRecommendation?,
+            preQuestionnaire: PreSessionQuestionnaire,
+            postQuestionnaire: PostSessionQuestionnaire,
+            bloodPressureBefore: BloodPressureMeasurement,
+            bloodPressureAfter: BloodPressureMeasurement,
+            latestPayload: String,
+            liveBioText: String
+        ) {
+            val json = JSONObject().apply {
+                put("type", "completed_session")
+
+                put("session", JSONObject().apply {
+                    put("session_id", session?.sessionId ?: "")
+                    put("problem_field_id", session?.problemFieldId ?: "")
+                    put("recommendation_id", session?.recommendationId ?: "")
+                    put("recommendation_title", session?.recommendationTitle ?: "")
+                    put("started_at_millis", session?.startedAtMillis ?: 0L)
+                })
+
+                put("problem_field", JSONObject().apply {
+                    put("id", problemField?.id ?: "")
+                    put("title", problemField?.title ?: "")
+                    put("subtitle", problemField?.subtitle ?: "")
+                    put("description", problemField?.description ?: "")
+                })
+
+                put("recommendation", JSONObject().apply {
+                    put("id", recommendation?.id ?: "")
+                    put("title", recommendation?.title ?: "")
+                    put("subtitle", recommendation?.subtitle ?: "")
+                    put("duration_minutes", recommendation?.durationMinutes ?: 0)
+                    put("style", recommendation?.style ?: "")
+                    put("tone", recommendation?.tone ?: "")
+                    put("effectiveness_label", recommendation?.effectivenessLabel ?: "")
+                })
+
+                put("pre_questionnaire", JSONObject().apply {
+                    put("emotional_load", preQuestionnaire.emotionalLoad)
+                    put("inner_restlessness", preQuestionnaire.innerRestlessness)
+                    put("overthinking", preQuestionnaire.overthinking)
+                    put("openness_for_meditation", preQuestionnaire.opennessForMeditation)
+                })
+
+                put("post_questionnaire", JSONObject().apply {
+                    put("calmness_now", postQuestionnaire.calmnessNow)
+                    put("relief", postQuestionnaire.relief)
+                    put("focus_now", postQuestionnaire.focusNow)
+                    put("helpfulness", postQuestionnaire.helpfulness)
+                    put("want_similar_meditations", postQuestionnaire.wantSimilarMeditations)
+                })
+
+                put("blood_pressure_before", JSONObject().apply {
+                    put("systolic", bloodPressureBefore.systolic)
+                    put("diastolic", bloodPressureBefore.diastolic)
+                })
+
+                put("blood_pressure_after", JSONObject().apply {
+                    put("systolic", bloodPressureAfter.systolic)
+                    put("diastolic", bloodPressureAfter.diastolic)
+                })
+
+                put("bio_feedback", JSONObject().apply {
+                    put("live_bio_text", liveBioText)
+                    put("latest_payload", latestPayload)
+                })
+            }
+
+            postJson(
+                url = SESSION_RESULT_WEBHOOK_URL,
+                json = json,
+                onSuccess = { code, success ->
+                    MainActivity.updateSendStatus(
+                        "Session an n8n gesendet. Code=$code, success=$success"
+                    )
+                },
+                onError = { message ->
+                    MainActivity.updateSendStatus(
+                        "Fehler beim Senden der Session: $message"
+                    )
+                }
+            )
+        }
+
+        private fun postJson(
+            url: String,
+            json: JSONObject,
+            onSuccess: (Int, Boolean) -> Unit,
+            onError: (String) -> Unit
+        ) {
             val body = json.toString()
                 .toRequestBody("application/json".toMediaType())
 
             val request = Request.Builder()
-                .url(MEDITATION_CONFIG_WEBHOOK_URL)
+                .url(url)
                 .post(body)
                 .build()
 
             Thread {
                 try {
                     staticClient.newCall(request).execute().use { response ->
-                        MainActivity.updateSendStatus(
-                            "Meditation an n8n gesendet. Code=${response.code}, success=${response.isSuccessful}"
-                        )
+                        onSuccess(response.code, response.isSuccessful)
                     }
                 } catch (e: Exception) {
-                    MainActivity.updateSendStatus(
-                        "Fehler beim Senden der Meditation: ${e.message}"
-                    )
+                    onError(e.message ?: "Unbekannter Fehler")
                 }
             }.start()
         }

@@ -15,7 +15,8 @@ import com.example.meditationbio.model.ProblemField
 fun RecommendationsScreen(
     selectedProblemField: ProblemField?,
     recommendations: List<MeditationRecommendation>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRecommendationSelected: (MeditationRecommendation) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -59,10 +60,10 @@ fun RecommendationsScreen(
             )
 
             Button(
-                onClick = { },
+                onClick = { onRecommendationSelected(recommendation) },
                 modifier = Modifier.padding(top = 8.dp)
             ) {
-                Text("Meditation starten")
+                Text("Details / Start")
             }
         }
     }

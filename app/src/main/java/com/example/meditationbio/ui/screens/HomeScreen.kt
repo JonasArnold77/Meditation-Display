@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 @androidx.compose.runtime.Composable
 fun HomeScreen(
     liveBioText: String,
+    sendStatus: String,
     onOpenProblemFields: () -> Unit,
     onOpenEditor: () -> Unit
 ) {
@@ -41,6 +42,16 @@ fun HomeScreen(
         ) {
             Text("Editor")
         }
+
+        Text(
+            text = "Status",
+            modifier = Modifier.padding(top = 24.dp)
+        )
+
+        Text(
+            text = sendStatus,
+            modifier = Modifier.padding(top = 8.dp)
+        )
 
         Text(
             text = "Live Bio-Daten",
