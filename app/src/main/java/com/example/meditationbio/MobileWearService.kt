@@ -14,11 +14,17 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 class MobileWearService : WearableListenerService() {
 
     companion object {
-        private val staticClient = OkHttpClient()
+        private val staticClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
+            .build()
 
         private const val MEDITATION_CONFIG_WEBHOOK_URL =
             "https://ingo-e-arnold.app.n8n.cloud/webhook-test/b74b3249-1912-4e2a-ad0b-f412a0644cb6"
@@ -56,15 +62,44 @@ class MobileWearService : WearableListenerService() {
                 put("special_notes", specialNotes)
             }
 
+            MainActivity.setMeditationGenerating(true)
+            MainActivity.setGeneratedMeditationText(null)
+            MainActivity.showGeneratedMeditationDialog(false)
+            MainActivity.updateSendStatus("Meditation wird an n8n gesendet...")
+
             postJson(
                 url = MEDITATION_CONFIG_WEBHOOK_URL,
                 json = json,
-                onSuccess = { code, success ->
-                    MainActivity.updateSendStatus(
-                        "Meditation an n8n gesendet. Code=$code, success=$success"
-                    )
+                onSuccess = { code, success, responseBody ->
+                    MainActivity.setMeditationGenerating(false)
+
+                    if (success) {
+                        try {
+                            val obj = JSONObject(responseBody)
+                            val textContent = obj.optString("textContent", "")
+
+                            if (textContent.isNotBlank()) {
+                                MainActivity.setGeneratedMeditationText(textContent)
+                                MainActivity.showGeneratedMeditationDialog(true)
+                                MainActivity.updateSendStatus("Meditation erfolgreich empfangen.")
+                            } else {
+                                MainActivity.updateSendStatus(
+                                    "Antwort erhalten, aber kein Meditationstext gefunden."
+                                )
+                            }
+                        } catch (e: Exception) {
+                            MainActivity.updateSendStatus(
+                                "Antwort konnte nicht gelesen werden: ${e.message}"
+                            )
+                        }
+                    } else {
+                        MainActivity.updateSendStatus(
+                            "Fehlerhafte Antwort von n8n. Code=$code, Body=$responseBody"
+                        )
+                    }
                 },
                 onError = { message ->
+                    MainActivity.setMeditationGenerating(false)
                     MainActivity.updateSendStatus(
                         "Fehler beim Senden der Meditation: $message"
                     )
@@ -145,7 +180,7 @@ class MobileWearService : WearableListenerService() {
             postJson(
                 url = SESSION_RESULT_WEBHOOK_URL,
                 json = json,
-                onSuccess = { code, success ->
+                onSuccess = { code, success, _ ->
                     MainActivity.updateSendStatus(
                         "Session an n8n gesendet. Code=$code, success=$success"
                     )
@@ -161,7 +196,7 @@ class MobileWearService : WearableListenerService() {
         private fun postJson(
             url: String,
             json: JSONObject,
-            onSuccess: (Int, Boolean) -> Unit,
+            onSuccess: (Int, Boolean, String) -> Unit,
             onError: (String) -> Unit
         ) {
             val body = json.toString()
@@ -175,7 +210,8 @@ class MobileWearService : WearableListenerService() {
             Thread {
                 try {
                     staticClient.newCall(request).execute().use { response ->
-                        onSuccess(response.code, response.isSuccessful)
+                        val responseBody = response.body?.string().orEmpty()
+                        onSuccess(response.code, response.isSuccessful, responseBody)
                     }
                 } catch (e: Exception) {
                     onError(e.message ?: "Unbekannter Fehler")

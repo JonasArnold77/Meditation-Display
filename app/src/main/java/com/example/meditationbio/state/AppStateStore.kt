@@ -95,4 +95,16 @@ object AppStateStore {
     fun updateSendStatus(text: String) {
         uiState = uiState.copy(sendStatus = text)
     }
+
+    fun setMeditationGenerating(value: Boolean) {
+        uiState = uiState.copy(isGeneratingMeditation = value)
+    }
+
+    fun setGeneratedMeditationText(text: String?) {
+        uiState = uiState.copy(generatedMeditationText = text)
+    }
+
+    fun showGeneratedMeditationDialog(show: Boolean) {
+        uiState = uiState.copy(showGeneratedMeditationDialog = show)
+    }
 }

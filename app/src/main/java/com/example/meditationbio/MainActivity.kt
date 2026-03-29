@@ -38,6 +38,18 @@ class MainActivity : ComponentActivity() {
         fun updateSendStatus(text: String) {
             AppStateStore.updateSendStatus(text)
         }
+
+        fun setMeditationGenerating(value: Boolean) {
+            AppStateStore.setMeditationGenerating(value)
+        }
+
+        fun setGeneratedMeditationText(text: String?) {
+            AppStateStore.setGeneratedMeditationText(text)
+        }
+
+        fun showGeneratedMeditationDialog(show: Boolean) {
+            AppStateStore.showGeneratedMeditationDialog(show)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -268,6 +280,12 @@ class MainActivity : ComponentActivity() {
                         AppScreen.EDITOR -> {
                             EditorScreen(
                                 sendStatus = uiState.sendStatus,
+                                generatedMeditationText = uiState.generatedMeditationText,
+                                isGeneratingMeditation = uiState.isGeneratingMeditation,
+                                showGeneratedMeditationDialog = uiState.showGeneratedMeditationDialog,
+                                onDismissGeneratedMeditation = {
+                                    AppStateStore.showGeneratedMeditationDialog(false)
+                                },
                                 onBack = {
                                     AppStateStore.navigateTo(AppScreen.HOME)
                                 }

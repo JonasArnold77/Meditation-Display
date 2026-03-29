@@ -28,5 +28,8 @@ data class AppUiState(
     val editorConfig: MeditationEditorConfig = MeditationEditorConfig(),
     val latestPayload: String = "Noch keine Daten von der Uhr empfangen.",
     val liveBioText: String = "Noch keine Bio-Daten geparst.",
-    val sendStatus: String = "Noch nichts an n8n gesendet."
+    val sendStatus: String = "Noch nichts an n8n gesendet.",
+    val generatedMeditationText: String? = null,
+    val isGeneratingMeditation: Boolean = false,
+    val showGeneratedMeditationDialog: Boolean = false
 )
