@@ -3,7 +3,18 @@ package com.example.meditationbio
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.example.meditationbio.data.ProblemFieldRepository
 import com.example.meditationbio.data.RecommendationRepository
 import com.example.meditationbio.logic.MeditationEffectivenessEvaluator
@@ -59,6 +70,62 @@ class MainActivity : ComponentActivity() {
             MeditationBioTheme {
                 Surface {
                     val uiState = AppStateStore.uiState
+
+                    if (uiState.isGeneratingMeditation && uiState.generatedMeditationText.isNullOrBlank()) {
+                        AlertDialog(
+                            onDismissRequest = { },
+                            confirmButton = {},
+                            title = {
+                                Text("Meditation wird geladen")
+                            },
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp)
+                                ) {
+                                    CircularProgressIndicator()
+                                    Text(
+                                        text = "Bitte warten, der Meditationstext wird gerade von n8n geladen.",
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    if (
+                        uiState.showGeneratedMeditationDialog &&
+                        !uiState.generatedMeditationText.isNullOrBlank() &&
+                        !uiState.isGeneratingMeditation
+                    ) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                AppStateStore.showGeneratedMeditationDialog(false)
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        AppStateStore.showGeneratedMeditationDialog(false)
+                                    }
+                                ) {
+                                    Text("Schließen")
+                                }
+                            },
+                            title = {
+                                Text("Generierte Meditation")
+                            },
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    Text(uiState.generatedMeditationText ?: "")
+                                }
+                            }
+                        )
+                    }
 
                     when (uiState.currentScreen) {
                         AppScreen.HOME -> {
@@ -152,6 +219,69 @@ class MainActivity : ComponentActivity() {
                                     AppStateStore.updateSendStatus(
                                         "Vorher-Check und Blutdruck vorher gespeichert. Session gestartet."
                                     )
+
+                                    val recommendation = uiState.selectedRecommendation
+                                    val problemField = uiState.selectedProblemField
+
+                                    val goal = when {
+                                        recommendation?.title?.isNotBlank() == true -> recommendation.title
+                                        problemField?.title?.isNotBlank() == true -> problemField.title
+                                        else -> "innere Ruhe"
+                                    }
+
+                                    val durationMinutes = recommendation?.durationMinutes ?: 10
+
+                                    val style = when {
+                                        recommendation?.style?.isNotBlank() == true -> recommendation.style
+                                        else -> "Atemmeditation"
+                                    }
+
+                                    val tone = when {
+                                        recommendation?.tone?.isNotBlank() == true -> recommendation.tone
+                                        problemField?.title?.contains("stress", ignoreCase = true) == true -> "sanft und beruhigend"
+                                        problemField?.title?.contains("angst", ignoreCase = true) == true -> "ruhig und stabilisierend"
+                                        else -> "sanft und warm"
+                                    }
+
+                                    val context = when {
+                                        problemField?.title?.contains("schlaf", ignoreCase = true) == true -> "abends"
+                                        else -> "tagsüber"
+                                    }
+
+                                    val focus = when {
+                                        recommendation?.subtitle?.isNotBlank() == true -> recommendation.subtitle
+                                        problemField?.subtitle?.isNotBlank() == true -> problemField.subtitle
+                                        else -> "Atmung"
+                                    }
+
+                                    val specialNotes = buildString {
+                                        append("Problemfeld: ")
+                                        append(problemField?.title ?: "Allgemein")
+                                        append(". ")
+                                        if (!problemField?.description.isNullOrBlank()) {
+                                            append("Beschreibung: ${problemField?.description}. ")
+                                        }
+                                        if (!recommendation?.subtitle.isNullOrBlank()) {
+                                            append("Empfehlung: ${recommendation?.subtitle}. ")
+                                        }
+                                        append("Bitte direkt vorlesbar formulieren und passend für die laufende Session.")
+                                    }
+
+                                    MobileWearService.sendMeditationConfigToN8n(
+                                        language = "de",
+                                        goal = goal,
+                                        durationMinutes = durationMinutes,
+                                        experienceLevel = "Anfänger",
+                                        style = style,
+                                        tone = tone,
+                                        targetAudience = "Erwachsene",
+                                        spiritual = false,
+                                        context = context,
+                                        focus = focus,
+                                        musicRecommendation = true,
+                                        specialNotes = specialNotes
+                                    )
+
                                     AppStateStore.navigateTo(AppScreen.MEDITATION_SESSION)
                                 }
                             )
@@ -280,12 +410,7 @@ class MainActivity : ComponentActivity() {
                         AppScreen.EDITOR -> {
                             EditorScreen(
                                 sendStatus = uiState.sendStatus,
-                                generatedMeditationText = uiState.generatedMeditationText,
                                 isGeneratingMeditation = uiState.isGeneratingMeditation,
-                                showGeneratedMeditationDialog = uiState.showGeneratedMeditationDialog,
-                                onDismissGeneratedMeditation = {
-                                    AppStateStore.showGeneratedMeditationDialog(false)
-                                },
                                 onBack = {
                                     AppStateStore.navigateTo(AppScreen.HOME)
                                 }

@@ -3,16 +3,12 @@ package com.example.meditationbio.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,10 +24,7 @@ import com.example.meditationbio.ui.components.SectionCard
 @androidx.compose.runtime.Composable
 fun EditorScreen(
     sendStatus: String,
-    generatedMeditationText: String?,
     isGeneratingMeditation: Boolean,
-    showGeneratedMeditationDialog: Boolean,
-    onDismissGeneratedMeditation: () -> Unit,
     onBack: () -> Unit
 ) {
     var language by remember { mutableStateOf("de") }
@@ -46,29 +39,6 @@ fun EditorScreen(
     var focus by remember { mutableStateOf("Atmung") }
     var musicRecommendation by remember { mutableStateOf(true) }
     var specialNotes by remember { mutableStateOf("keine esoterische Sprache") }
-
-    if (showGeneratedMeditationDialog && !generatedMeditationText.isNullOrBlank()) {
-        AlertDialog(
-            onDismissRequest = onDismissGeneratedMeditation,
-            confirmButton = {
-                TextButton(onClick = onDismissGeneratedMeditation) {
-                    Text("Schließen")
-                }
-            },
-            title = {
-                Text("Generierte Meditation")
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Text(generatedMeditationText)
-                }
-            }
-        )
-    }
 
     Column(
         modifier = Modifier
@@ -204,12 +174,6 @@ fun EditorScreen(
                     },
                     modifier = Modifier.padding(top = 20.dp)
                 )
-
-                if (isGeneratingMeditation) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                }
             }
         }
 
