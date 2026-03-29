@@ -18,6 +18,8 @@ data class AppUiState(
     val selectedRecommendation: MeditationRecommendation? = null,
     val currentSession: MeditationSession? = null,
     val recommendations: List<MeditationRecommendation> = emptyList(),
+    val currentRecommendationIndex: Int = 0,
+    val savedRecommendations: List<MeditationRecommendation> = emptyList(),
     val completedSessions: List<CompletedSessionRecord> = emptyList(),
     val preSessionQuestionnaire: PreSessionQuestionnaire = PreSessionQuestionnaire(),
     val postSessionQuestionnaire: PostSessionQuestionnaire = PostSessionQuestionnaire(),

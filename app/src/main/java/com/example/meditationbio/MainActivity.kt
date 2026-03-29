@@ -32,6 +32,7 @@ import com.example.meditationbio.ui.screens.ProblemFieldsScreen
 import com.example.meditationbio.ui.screens.ProgressScreen
 import com.example.meditationbio.ui.screens.RecommendationDetailScreen
 import com.example.meditationbio.ui.screens.RecommendationsScreen
+import com.example.meditationbio.ui.screens.SavedMeditationsScreen
 import com.example.meditationbio.ui.screens.SessionResultScreen
 import com.example.meditationbio.ui.theme.MeditationBioTheme
 
@@ -170,12 +171,39 @@ class MainActivity : ComponentActivity() {
                             RecommendationsScreen(
                                 selectedProblemField = uiState.selectedProblemField,
                                 recommendations = uiState.recommendations,
+                                currentRecommendationIndex = uiState.currentRecommendationIndex,
                                 onBack = {
                                     AppStateStore.navigateTo(AppScreen.PROBLEM_FIELDS)
+                                },
+                                onSwipeLeft = {
+                                    AppStateStore.moveToNextRecommendation()
+                                },
+                                onSwipeRight = {
+                                    AppStateStore.saveCurrentRecommendation()
+                                },
+                                onOpenSavedMeditations = {
+                                    AppStateStore.navigateTo(AppScreen.SAVED_MEDITATIONS)
                                 },
                                 onRecommendationSelected = { recommendation ->
                                     AppStateStore.selectRecommendation(recommendation)
                                     AppStateStore.navigateTo(AppScreen.RECOMMENDATION_DETAIL)
+                                }
+                            )
+                        }
+
+                        AppScreen.SAVED_MEDITATIONS -> {
+                            SavedMeditationsScreen(
+                                selectedProblemField = uiState.selectedProblemField,
+                                savedRecommendations = uiState.savedRecommendations,
+                                onBack = {
+                                    AppStateStore.navigateTo(AppScreen.RECOMMENDATIONS)
+                                },
+                                onOpenRecommendation = { recommendation ->
+                                    AppStateStore.selectRecommendation(recommendation)
+                                    AppStateStore.navigateTo(AppScreen.RECOMMENDATION_DETAIL)
+                                },
+                                onRemoveRecommendation = { recommendation ->
+                                    AppStateStore.removeSavedRecommendation(recommendation.id)
                                 }
                             )
                         }

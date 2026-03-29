@@ -27,11 +27,52 @@ object AppStateStore {
     }
 
     fun selectRecommendation(recommendation: MeditationRecommendation) {
-        uiState = uiState.copy(selectedRecommendation = recommendation)
+        val index = uiState.recommendations.indexOfFirst { it.id == recommendation.id }
+        uiState = uiState.copy(
+            selectedRecommendation = recommendation,
+            currentRecommendationIndex = if (index >= 0) index else uiState.currentRecommendationIndex
+        )
     }
 
     fun setRecommendations(recommendations: List<MeditationRecommendation>) {
-        uiState = uiState.copy(recommendations = recommendations)
+        uiState = uiState.copy(
+            recommendations = recommendations,
+            currentRecommendationIndex = 0,
+            selectedRecommendation = recommendations.firstOrNull()
+        )
+    }
+
+    fun moveToNextRecommendation() {
+        val recommendations = uiState.recommendations
+        if (recommendations.isEmpty()) return
+
+        val nextIndex = (uiState.currentRecommendationIndex + 1) % recommendations.size
+        uiState = uiState.copy(
+            currentRecommendationIndex = nextIndex,
+            selectedRecommendation = recommendations[nextIndex],
+            sendStatus = "Nächster Meditationsvorschlag geladen."
+        )
+    }
+
+    fun saveCurrentRecommendation() {
+        val current = uiState.recommendations.getOrNull(uiState.currentRecommendationIndex) ?: return
+        val alreadySaved = uiState.savedRecommendations.any { it.id == current.id }
+
+        uiState = if (alreadySaved) {
+            uiState.copy(sendStatus = "Diese Meditation ist bereits gespeichert.")
+        } else {
+            uiState.copy(
+                savedRecommendations = uiState.savedRecommendations + current,
+                sendStatus = "Meditation gespeichert: ${current.title}"
+            )
+        }
+    }
+
+    fun removeSavedRecommendation(recommendationId: String) {
+        uiState = uiState.copy(
+            savedRecommendations = uiState.savedRecommendations.filterNot { it.id == recommendationId },
+            sendStatus = "Meditation aus gespeichertem Menü entfernt."
+        )
     }
 
     fun updatePreSessionQuestionnaire(questionnaire: PreSessionQuestionnaire) {
