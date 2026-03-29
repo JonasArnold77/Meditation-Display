@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.meditationbio.ui.components.PrimaryButton
+import com.example.meditationbio.ui.components.ScreenHeader
+import com.example.meditationbio.ui.components.SectionCard
 
 @androidx.compose.runtime.Composable
 fun HomeScreen(
@@ -21,62 +26,92 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text("Meditation Bio")
-
-        Text(
-            text = "Wähle einen Einstieg:",
-            modifier = Modifier.padding(top = 16.dp)
+        ScreenHeader(
+            title = "Meditation Bio",
+            subtitle = "Persönliche Meditationen mit Biofeedback, Verlauf und intelligenten Empfehlungen."
         )
 
-        Button(
-            onClick = onOpenProblemFields,
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text("Problemfelder")
+        SectionCard {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Starte dort, wo du gerade stehst.",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = "Wähle ein Problemfeld, öffne den freien Editor oder schau in deinen Fortschritt.",
+                    modifier = Modifier.padding(top = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                PrimaryButton(
+                    text = "Problemfelder",
+                    onClick = onOpenProblemFields,
+                    modifier = Modifier.padding(top = 20.dp)
+                )
+
+                PrimaryButton(
+                    text = "Editor",
+                    onClick = onOpenEditor,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+
+                PrimaryButton(
+                    text = "Fortschritt",
+                    onClick = onOpenProgress,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+
+                PrimaryButton(
+                    text = "Profil",
+                    onClick = onOpenProfile,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
 
-        Button(
-            onClick = onOpenEditor,
-            modifier = Modifier.padding(top = 8.dp)
+        SectionCard(
+            modifier = Modifier.padding(top = 20.dp)
         ) {
-            Text("Editor")
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Status",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = sendStatus,
+                    modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
-        Button(
-            onClick = onOpenProgress,
-            modifier = Modifier.padding(top = 8.dp)
+        SectionCard(
+            modifier = Modifier.padding(top = 20.dp)
         ) {
-            Text("Fortschritt")
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(
+                    text = "Live Bio-Daten",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Text(
+                    text = liveBioText,
+                    modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-
-        Button(
-            onClick = onOpenProfile,
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Text("Profil")
-        }
-
-        Text(
-            text = "Status",
-            modifier = Modifier.padding(top = 24.dp)
-        )
-
-        Text(
-            text = sendStatus,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Text(
-            text = "Live Bio-Daten",
-            modifier = Modifier.padding(top = 24.dp)
-        )
-
-        Text(
-            text = liveBioText,
-            modifier = Modifier.padding(top = 8.dp)
-        )
     }
 }

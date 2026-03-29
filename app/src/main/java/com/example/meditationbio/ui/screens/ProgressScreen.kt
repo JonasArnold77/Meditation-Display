@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.meditationbio.model.CompletedSessionRecord
+import com.example.meditationbio.ui.components.MetricCard
+import com.example.meditationbio.ui.components.ScreenHeader
+import com.example.meditationbio.ui.components.SecondaryButton
+import com.example.meditationbio.ui.components.SectionCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,72 +42,100 @@ fun ProgressScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        Text("Fortschritt")
+        ScreenHeader(
+            title = "Fortschritt",
+            subtitle = "Dein Verlauf, deine Scores und erste Muster in deiner Praxis."
+        )
 
-        Button(
-            onClick = onBack,
-            modifier = Modifier.padding(top = 12.dp)
-        ) {
-            Text("Zurück")
-        }
+        SecondaryButton(
+            text = "Zurück",
+            onClick = onBack
+        )
 
-        Text(
-            text = "Sessions insgesamt: $totalSessions",
+        MetricCard(
+            title = "Sessions insgesamt",
+            value = "$totalSessions",
+            modifier = Modifier.padding(top = 16.dp)
+        )
+
+        MetricCard(
+            title = "Durchschnittsscore",
+            value = "$averageScore",
+            modifier = Modifier.padding(top = 16.dp)
+        )
+
+        MetricCard(
+            title = "Bestes Problemfeld",
+            value = bestProblemField,
             modifier = Modifier.padding(top = 16.dp)
         )
 
         Text(
-            text = "Durchschnittsscore: $averageScore",
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Text(
-            text = "Bestes Problemfeld bisher: $bestProblemField",
-            modifier = Modifier.padding(top = 8.dp)
-        )
-
-        Text(
             text = "Verlauf",
-            modifier = Modifier.padding(top = 24.dp)
+            modifier = Modifier.padding(top = 24.dp),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         if (completedSessions.isEmpty()) {
-            Text(
-                text = "Noch keine abgeschlossenen Sessions vorhanden.",
-                modifier = Modifier.padding(top = 12.dp)
-            )
+            SectionCard(
+                modifier = Modifier.padding(top = 16.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Noch keine abgeschlossenen Sessions vorhanden.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         } else {
             completedSessions
                 .sortedByDescending { it.timestampMillis }
                 .forEach { session ->
-                    Text(
-                        text = session.recommendationTitle,
+                    SectionCard(
                         modifier = Modifier.padding(top = 16.dp)
-                    )
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = session.recommendationTitle,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
-                    Text(
-                        text = "Problemfeld: ${session.problemFieldId}",
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                            Text(
+                                text = "Problemfeld: ${session.problemFieldId}",
+                                modifier = Modifier.padding(top = 8.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                    Text(
-                        text = "Score: ${session.effectivenessScore}",
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                            Text(
+                                text = "Score: ${session.effectivenessScore}",
+                                modifier = Modifier.padding(top = 6.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                    Text(
-                        text = "Fazit: ${session.summary}",
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                            Text(
+                                text = session.summary,
+                                modifier = Modifier.padding(top = 6.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
 
-                    Text(
-                        text = "Zeitpunkt: ${formatter.format(Date(session.timestampMillis))}",
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                            Text(
+                                text = formatter.format(Date(session.timestampMillis)),
+                                modifier = Modifier.padding(top = 10.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
         }
     }
